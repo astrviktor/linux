@@ -51,3 +51,11 @@
 После этого можно делать commit
 
 	git comit -m "start"
+
+Все это происходит на локаьной машине
+Теперь нужно отправить на github
+
+4. Отправка на github
+
+	git remote add linux https://github.com/astrviktor/linux
+	git push -u linux master
