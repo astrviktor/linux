@@ -1,0 +1,53 @@
+1. Установка git
+
+На linux
+
+	sudo apt-get install git
+
+На windows
+
+	https://msysgit.github.io/
+	https://gitforwindows.org/
+
+2. Настройки имени и почты
+
+В консоли git вбиваем
+
+	git config --global user.name "Astrakhantsev Viktor"
+	git config --global user.email "astrviktor@gmail.com"
+
+все настройки
+
+	git config --list
+
+Помощь
+
+	git help commit
+	git commit --help
+
+Запуск консоли 
+	git bash
+
+3. Создание репозитория
+
+Или клонируем репозиторий, или импортируем в git существующий каталог
+Создаем папку linux и переходим в нее из консоли
+	
+	cd c:/work/gitprojects/linux
+	git init
+
+Смотрим статус файлов в папке
+
+	git status
+
+Добавляем все файлы
+
+	git add .
+
+Если файлы изменяться, нужно проиндексировать повторно, можно конкретный файл
+
+	git add git.txt
+
+После этого можно делать commit
+
+	git comit -m "start"

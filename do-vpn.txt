@@ -1,0 +1,266 @@
+1. Регистрация на Digital Ocean
+
+https://www.digitalocean.com/
+
+Нужен paypal, обычная кредитка не подходит
+
+
+2. Делаем минимальный дроплет на ubuntu.
+Многие диапазоны заблакированы РКН, делаем в Индии.
+На почту придет пароль. Цепляемся по SSH.
+
+	apt-get update
+	apt-get upgrade
+
+3. Закрываем ipv6
+
+	sudo nano /etc/sysctl.conf
+
+В конец файла добавить
+
+	net.ipv6.conf.all.disable_ipv6 = 1
+	net.ipv6.conf.default.disable_ipv6 = 1
+	net.ipv6.conf.lo.disable_ipv6 = 1
+
+Применить
+
+	sudo sysctl -p
+
+Проверить 
+	
+	ifconfig	
+
+
+4. Смотрим открытые порты, отключаем UFW
+
+	netstat -ntulp
+	apt-get install nmap
+
+	nmap localhost
+	nmap localhost -p 22
+
+	sudo systemctl status ufw
+	sudo systemctl stop ufw
+	sudo systemctl disable ufw	
+
+
+5. Ставим Fail2ban
+
+Установка
+	
+	sudo apt-get install fail2ban
+
+настройка
+
+	sudo service fail2ban status
+	sudo nano /etc/fail2ban/jail.conf
+	
+добавить в jails ssh
+
+[sshd]
+
+port    = ssh
+logpath = %(sshd_log)s
+backend = %(sshd_backend)s
+bantime  = 86400
+maxretry = 3
+
+	
+Перегрузить сервис
+
+	sudo service fail2ban restart
+	
+Смотрим лог
+	
+	sudo tail -f /var/log/fail2ban.log
+
+Смотрим iptables
+	
+	sudo iptables -L -n
+
+Удалить из бана
+	
+	sudo fail2ban-client status sshd
+	sudo fail2ban-client set sshd unbanip ***IP***
+
+6. Ставим OpenVPN
+
+Открываем forward трафика
+
+	sudo nano /etc/sysctl.conf
+	открываем 
+	net.ipv4.ip_forward=1
+	применяем
+	echo 1 >> /proc/sys/net/ipv4/conf/all/forwarding
+
+Установка
+
+	sudo apt-get install openvpn openssl easy-rsa iptables bash-completion
+	sudo su
+
+
+	mkdir /etc/openvpn/easy-rsa
+	cd /etc/openvpn/easy-rsa
+	cp -r /usr/share/easy-rsa/* /etc/openvpn/easy-rsa/
+	ls -l
+
+	nano vars
+	меняем секцию export на свои значения
+
+	export KEY_COUNTRY="RU"
+	export KEY_PROVINCE="Moscow"
+	export KEY_CITY="Moscow"
+	export KEY_ORG="Home"
+	export KEY_EMAIL="me@myhost.mydomain"
+	export KEY_OU="HomeUnit"
+
+	cp openssl-1.0.0.cnf openssl.cnf
+
+	source ./vars
+	./clean-all
+	./build-ca
+	Enter *
+	./build-key-server ServerVPN
+	Enter * password Enter 2 y y
+
+	./build-key ClientVPN
+	Enter * password Enter 2 y y
+
+	./build-dh
+	openvpn --genkey --secret keys/ta.key
+
+	cd keys
+	mkdir /etc/openvpn/ccd
+	cp ServerVPN.crt ServerVPN.key ca.crt dh2048.pem ta.key /etc/openvpn/
+	cp ClientVPN.crt ClientVPN.key ca.crt ta.key /etc/openvpn/ccd/
+
+Для сервера
+
+	cd /etc/openvpn/
+	nano ServerVPN.conf
+
+	port 11940
+	proto tcp
+	dev tun
+	ca ca.crt
+	cert ServerVPN.crt
+	key ServerVPN.key
+	dh dh2048.pem
+	tls-auth ta.key 0
+	cipher AES-256-CBC
+	server 10.0.0.0 255.255.255.0
+	keepalive 30 120
+	comp-lzo
+	persist-key
+	persist-tun
+	client-config-dir ccd
+	status ServerVPN-status.log
+	log /var/log/ServerVPN.log
+	verb 3
+	sndbuf 0
+	rcvbuf 0
+	push "redirect-gateway def1"
+	push "dhcp-options DNS 8.8.8.8"
+
+Для клиента
+
+	cd /etc/openvpn/ccd/
+	nano ClientVPN.conf
+
+	client
+	dev tun
+	proto tcp
+	remote ***IP*** 11940
+	resolv-retry infinite
+	nobind
+	comp-lzo
+	persist-key
+	persist-tun
+	ca ca.crt
+	cert ClientVPN.crt
+	key ClientVPN.key
+	tls-auth ta.key 1
+	cipher AES-256-CBC
+	remote-cert-tls server
+	auth-nocache
+	log ClientVPN.log
+	verb 3
+	sndbuf 0
+	rcvbuf 0
+
+Добавить правило
+
+	iptables -t nat -A POSTROUTING -s 10.0.0.0/24 -o eth0 -j MASQUERADE
+	
+	Сохраняем iptables
+
+	iptables-save > /etc/iptables.rules
+	nano /etc/network/interfaces
+	в самом низу добавляем
+	pre-up iptables-restore < /etc/iptables.rules
+
+	или 
+
+	apt install iptables-persistent
+	правила находятся в /etc/iptables/rules.v4
+
+	после перезагрузки можно проверить iptables
+
+	sudo iptables -L -t nat
+
+	sudo service openvpn restart
+	sudo service openvpn status
+
+Скачиваем клиентские файлы на комп и проверяем скорости
+Ставим stavim speedtest для проверки скорости на сервере
+
+	sudo apt-get install speedtest-cli
+	speedtest
+
+
+
+
+7. Делаем один файл для IOS
+
+Нужно в конфигурационный файл .ovpn в конце добавить все ключи
+
+
+# Содержимое открытого ключа OpenVPN-сервера (CA, сертификата сервера)
+<ca>
+-----BEGIN CERTIFICATE-----
+
+-----END CERTIFICATE-----
+</ca>
+
+
+# Содержимое открытого ключа OpenVPN-клиента (сертификата клиента)
+<cert>
+-----BEGIN CERTIFICATE-----
+
+-----END CERTIFICATE-----
+</cert>
+
+
+# Содержимое закрытого ключа OpenVPN-клиента
+<key>
+-----BEGIN PRIVATE KEY-----
+
+-----END PRIVATE KEY-----
+</key>
+
+
+# (Опционально) Включаем поддержку согласования статического ключа "HMAC" при
+# инициировании соединения я сервером (помогает для защиты от DDoS за счёт того, что
+# соединение на порту принимается только в том случае, если клиент будет обращаться к
+# серверу используя точно такой же статический ключ "HMAC" и отбрасывать соединения, без
+# "подписи" этим ключом)
+
+key-direction 1
+
+# (Опционально) Содержимое статического ключа "HMAC" предварительной аутентификации
+<tls-auth>
+-----BEGIN OpenVPN Static key V1-----
+
+-----END OpenVPN Static key V1-----
+</tls-auth>
+
