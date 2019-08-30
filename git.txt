@@ -52,10 +52,14 @@
 
 	git comit -m "start"
 
-Все это происходит на локаьной машине
+Все это происходит на локальной машине
 Теперь нужно отправить на github
 
 4. Отправка на github
 
 	git remote add linux https://github.com/astrviktor/linux
 	git push -u linux master
+
+5. Скопировать с github
+
+	git clone https://github.com/astrviktor/linux
