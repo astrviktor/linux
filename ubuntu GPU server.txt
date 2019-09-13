@@ -1,0 +1,133 @@
+ubuntu GPU (nvidia) server для машинного обучения и DeepLearning
+
+---------------------------------
+1. Установка операционной системы
+---------------------------------
+
+1.1. Устанавливаем Ubuntu Server 18.04 на SSD
+
+1.2. Отключаем UFW и SELinux
+
+отключаем ufw
+
+	sudo systemctl status ufw
+	sudo systemctl stop ufw
+	sudo systemctl disable ufw
+
+отключаем selinux
+
+	sudo sestatus
+	sudo apt install policycoreutils
+	sudo sestatus
+
+1.3. Внутренний статический IP
+	
+	ifconfig
+
+	cd /etc/netplan/
+	ls -l
+
+	sudo nano /etc/netplan/50-cloud-init.yaml
+
+network:
+    version: 2
+    ethernets:
+        eth0:
+            dhcp4: no
+            dhcp6: no
+            match:
+                macaddress: xx:xx:xx:xx:xx:xx
+            set-name: eth0
+            addresses: [192.168.1.11/24]
+            gateway4: 192.168.1.1
+            nameservers:
+                addresses: [8.8.8.8,8.8.4.4]
+
+Проверка конфигурации
+
+	sudo netplan try
+
+Перезагрузка и проверка
+	
+	ifconfig
+
+1.4. Отключение ipv6
+
+	sudo nano /etc/sysctl.conf
+
+В конец файла добавить
+
+	net.ipv6.conf.all.disable_ipv6 = 1
+	net.ipv6.conf.default.disable_ipv6 = 1
+	net.ipv6.conf.lo.disable_ipv6 = 1
+
+Применить
+
+	sudo sysctl -p
+
+Проверить 
+	
+	ifconfig
+
+Должно остаться только ipv4
+
+------------------
+2. Установка CUDA
+------------------
+https://askubuntu.com/questions/1028830/how-do-i-install-cuda-on-ubuntu-18-04
+
+	sudo add-apt-repository ppa:graphics-drivers/ppa
+	sudo apt update
+	sudo ubuntu-drivers autoinstall
+
+	reboot
+
+	sudo apt install nvidia-cuda-toolkit gcc-6
+	nvcc --version
+
+	htop for nvidia
+	https://www.linux.org.ru/forum/general/12431152
+
+	nvidia-smi
+	nvidia-smi -q
+
+--------------------------
+3. Jupyter Notebook и venv
+--------------------------
+
+https://www.8host.com/blog/ustanovka-jupyter-notebook-dlya-python-3-v-ubuntu-18-04/
+
+	cd /home/leon/python
+
+	создание нового виртуального окружения (если надо)
+
+	virtualenv work
+
+	активация виртуального окружения
+
+	source work/bin/activate
+
+	запуск jupyter notebook
+
+	jupyter notebook --no-browser --ip=192.168.99.99
+
+-------------------
+4. Установка fastai
+-------------------
+
+https://docs.fast.ai/install.html
+
+--------------
+5. Wake on lan
+--------------
+
+https://www.opennet.ru/tips/2503_lan_linux_ethernet_boot.shtml
+
+Установка
+
+	sudo apt-get install wakeonlan
+
+Разбудить по сети
+
+	wakeonlan -p 8 50:3e:aa:08:6c:0c
+
